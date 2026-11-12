@@ -1,0 +1,188 @@
+<Window x:Class="StartPos.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Start Pos Tools"
+        Width="1050" Height="840" MinWidth="820" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Closing="OnClosing">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="5"/>
+            <RowDefinition Height="*" MinHeight="120"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- RPFM: shared by every tool -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Style="{StaticResource FieldLabel}" Text="RPFM folder"
+                       ToolTip="The RPFM 5.3 (or newer) folder (the one with rpfm_server.exe). Packs are read and written through RPFM's server, which is started from here when it is not running. RPFM needs the Warhammer 3 game folder set and its dependencies cache generated."/>
+            <TextBox x:Name="RpfmFolderBox" Grid.Column="1" Style="{StaticResource PathBox}"/>
+            <Button Grid.Column="2" Style="{StaticResource BrowseButton}" Click="BrowseRpfmFolder"/>
+        </Grid>
+
+        <TabControl x:Name="Tabs" Grid.Row="1">
+            <!-- Decompile -->
+            <TabItem Header="Decompile">
+                <StackPanel Margin="8">
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
+                               Text="Turns a built startpos.esf back into a .pack of start_pos tables that RPFM's Build Startpos can build again. Pick the mod pack that holds campaigns/&lt;campaign&gt;/startpos.esf, or the .esf itself."/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Input"/>
+                        <TextBox x:Name="InputBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource PathBox}" LostFocus="OnInputChanged"/>
+                        <Button Grid.Row="0" Grid.Column="2" Style="{StaticResource BrowseButton}" Click="BrowseInput"/>
+
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Campaign"
+                                   ToolTip="The campaign whose startpos to decompile, when the pack has several. Filled from the .esf, or with the campaigns the pack has a startpos for."/>
+                        <ComboBox x:Name="CampaignCombo" Grid.Row="1" Grid.Column="1" Margin="0,2" IsEditable="True"
+                                  VerticalContentAlignment="Center" SelectionChanged="OnCampaignChanged"/>
+                        <Button x:Name="ListCampaignsButton" Grid.Row="1" Grid.Column="2" Content="List" Padding="8,2" Margin="4,2,0,2"
+                                Click="ListCampaigns" ToolTip="Read the campaign of the input .esf, or list the startpos files in the input pack."/>
+
+                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="Output pack"/>
+                        <TextBox x:Name="OutputBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource PathBox}"/>
+                        <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource BrowseButton}" Click="BrowseOutput"/>
+
+                        <TextBlock Grid.Row="3" Style="{StaticResource FieldLabel}" Text="Table name override"
+                                   ToolTip="Overrides &lt;name&gt; in the table file names: db/&lt;table&gt;_tables/!!!&lt;name&gt;_campaign, _vanilla_factions, _new_factions, _vanilla_regions and _new_regions. Empty: the campaign key."/>
+                        <TextBox x:Name="NameBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource PathBox}"/>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button x:Name="DecompileButton" Style="{StaticResource ActionButton}" Content="Decompile" Click="RunDecompile" IsDefault="True"/>
+                        <Button x:Name="OpenOutputButton" Style="{StaticResource ActionButton}" Content="Show output" Click="OpenOutput" IsEnabled="False"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="ResultGrid" Margin="0,10,0,0" Height="180" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None" Visibility="Collapsed">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Table" Binding="{Binding Table}" Width="*"/>
+                            <DataGridTextColumn Header="Rows" Binding="{Binding Rows}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Compare -->
+            <TabItem Header="Compare">
+                <StackPanel Margin="8">
+                    <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8"
+                               Text="Compares two startpos files or start_pos table packs, matching rows on what they are about rather than on IDs. Each side is a startpos.esf, a pack with campaigns/&lt;campaign&gt;/startpos.esf (decompiled), or a pack of start_pos tables. The rows that differ are written to the output pack: db/&lt;table&gt;_tables/left_&lt;campaign&gt; holds the left rows the right side doesn't have, right_&lt;campaign&gt; the right rows the left side doesn't have."/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                            <RowDefinition/><RowDefinition/><RowDefinition/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Style="{StaticResource FieldLabel}" Text="Left"/>
+                        <TextBox x:Name="LeftBox" Grid.Row="0" Grid.Column="1" Style="{StaticResource PathBox}" LostFocus="OnLeftChanged"/>
+                        <Button Grid.Row="0" Grid.Column="2" Style="{StaticResource BrowseButton}" Click="BrowseLeft"/>
+
+                        <TextBlock Grid.Row="1" Style="{StaticResource FieldLabel}" Text="Left reads"
+                                   ToolTip="For a pack: decompile its startpos.esf, or read its start_pos tables. Set from what the pack holds; choose when it holds both."/>
+                        <ComboBox x:Name="LeftSourceCombo" Grid.Row="1" Grid.Column="1" Margin="0,2" SelectedIndex="0"
+                                  VerticalContentAlignment="Center" SelectionChanged="OnSourceChanged">
+                            <ComboBoxItem Content="its startpos.esf, decompiled"/>
+                            <ComboBoxItem Content="its start_pos tables"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="2" Style="{StaticResource FieldLabel}" Text="Left campaign"
+                                   ToolTip="The left side's campaign. Filled from the .esf, with the campaigns the pack has a startpos for, or with the campaigns its start_pos tables are for."/>
+                        <ComboBox x:Name="LeftCampaignCombo" Grid.Row="2" Grid.Column="1" Margin="0,2" IsEditable="True" VerticalContentAlignment="Center"/>
+                        <Button x:Name="ListLeftButton" Grid.Row="2" Grid.Column="2" Content="List" Padding="8,2" Margin="4,2,0,2"
+                                Click="ListLeftCampaigns" ToolTip="List the campaigns of the left input."/>
+
+                        <TextBlock Grid.Row="3" Style="{StaticResource FieldLabel}" Text="Right"/>
+                        <TextBox x:Name="RightBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource PathBox}" LostFocus="OnRightChanged"/>
+                        <Button Grid.Row="3" Grid.Column="2" Style="{StaticResource BrowseButton}" Click="BrowseRight"/>
+
+                        <TextBlock Grid.Row="4" Style="{StaticResource FieldLabel}" Text="Right reads"
+                                   ToolTip="For a pack: decompile its startpos.esf, or read its start_pos tables. Set from what the pack holds; choose when it holds both."/>
+                        <ComboBox x:Name="RightSourceCombo" Grid.Row="4" Grid.Column="1" Margin="0,2" SelectedIndex="0"
+                                  VerticalContentAlignment="Center" SelectionChanged="OnSourceChanged">
+                            <ComboBoxItem Content="its startpos.esf, decompiled"/>
+                            <ComboBoxItem Content="its start_pos tables"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="5" Style="{StaticResource FieldLabel}" Text="Right campaign"
+                                   ToolTip="The right side's campaign. Filled from the .esf, with the campaigns the pack has a startpos for, or with the campaigns its start_pos tables are for."/>
+                        <ComboBox x:Name="RightCampaignCombo" Grid.Row="5" Grid.Column="1" Margin="0,2" IsEditable="True" VerticalContentAlignment="Center"/>
+                        <Button x:Name="ListRightButton" Grid.Row="5" Grid.Column="2" Content="List" Padding="8,2" Margin="4,2,0,2"
+                                Click="ListRightCampaigns" ToolTip="List the campaigns of the right input."/>
+
+                        <TextBlock Grid.Row="6" Style="{StaticResource FieldLabel}" Text="Output pack"
+                                   ToolTip="The pack the differing rows are written to. Empty: next to the left input."/>
+                        <TextBox x:Name="CompareOutputBox" Grid.Row="6" Grid.Column="1" Style="{StaticResource PathBox}"/>
+                        <Button Grid.Row="6" Grid.Column="2" Style="{StaticResource BrowseButton}" Click="BrowseCompareOutput"/>
+
+                        <CheckBox x:Name="IgnoreCampaignBox" Grid.Row="7" Grid.Column="1" Margin="0,4" IsChecked="True"
+                                  Content="Ignore the campaign key"
+                                  ToolTip="Leave the campaign column out of matching and comparing, so the startpos files of two campaigns (e.g. cr_combi_expanded and wh3_main_combi) are compared row by row."/>
+                        <CheckBox x:Name="OnlyBuiltBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,4" IsChecked="True"
+                                  Content="Only what a built startpos keeps"
+                                  ToolTip="Leave out what is not in a startpos.esf: columns the build drops (loyalty, development points, ...), rows it drops (neutral diplomacy, units of generals in the pool, technologies in no tech tree, ...), defaults it fills in, and, against a decompiled startpos, what the build picks by itself (art sets, positions of characters at 0,0, names it rejected). Off: every column of every row is compared."/>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button x:Name="CompareButton" Style="{StaticResource ActionButton}" Content="Compare" Click="RunCompare"/>
+                        <Button x:Name="OpenCompareOutputButton" Style="{StaticResource ActionButton}" Content="Show output" Click="OpenCompareOutput" IsEnabled="False"/>
+                    </StackPanel>
+
+                    <DataGrid x:Name="CompareGrid" Margin="0,10,0,0" Height="200" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None" Visibility="Collapsed">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Table" Binding="{Binding Table}" Width="2*"/>
+                            <DataGridTextColumn Header="Left rows" Binding="{Binding LeftRows}" Width="70"/>
+                            <DataGridTextColumn Header="Right rows" Binding="{Binding RightRows}" Width="70"/>
+                            <DataGridTextColumn Header="Only left" Binding="{Binding OnlyLeft}" Width="70"/>
+                            <DataGridTextColumn Header="Only right" Binding="{Binding OnlyRight}" Width="70"/>
+                            <DataGridTextColumn Header="Differing columns (rows)" Binding="{Binding Columns}" Width="3*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+
+        <GridSplitter Grid.Row="2" HorizontalAlignment="Stretch" Background="Transparent"/>
+
+        <!-- Log: every tool writes here -->
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <DockPanel Margin="0,4,0,2">
+                <Button DockPanel.Dock="Right" Content="Clear" Padding="8,1" Click="ClearLog"/>
+                <Button DockPanel.Dock="Right" Content="Copy" Padding="8,1" Margin="0,0,6,0" Click="CopyLog"/>
+                <TextBlock Text="Log" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </DockPanel>
+            <TextBox x:Name="LogBox" Grid.Row="1" IsReadOnly="True" FontFamily="Consolas" FontSize="12"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap"/>
+        </Grid>
+
+        <DockPanel Grid.Row="4" Margin="0,6,0,0">
+            <Button x:Name="CancelButton" DockPanel.Dock="Right" Content="Cancel" Padding="12,2" IsEnabled="False" Click="Cancel"/>
+            <ProgressBar x:Name="Busy" DockPanel.Dock="Right" Width="120" Height="12" Margin="0,0,10,0" IsIndeterminate="True" Visibility="Hidden"/>
+            <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="Gray" Text="Ready"/>
+        </DockPanel>
+    </Grid>
+</Window>

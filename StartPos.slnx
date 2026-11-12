@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/StartPos.App/StartPos.App.csproj" />
+    <Project Path="src/StartPos.Cli/StartPos.Cli.csproj" />
+    <Project Path="src/StartPos.Core/StartPos.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/StartPos.Tests/StartPos.Tests.csproj" />
+  </Folder>
+</Solution>
